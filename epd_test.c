@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "lib/font/font12.c"
 #include "EPD.h"
 
 void DEV_Delay_ms(UDOUBLE xms) {
@@ -16,6 +17,12 @@ void GenerateTestPattern(UBYTE *image) {
                 image[y * width + x / 8] |= (1 << (7 - x % 8));
             }
         }
+    }
+}
+
+void drawFront(UBYTE *image, UWORD x, UWORD y, const char *text, bool color) {
+    for(int i = y; i<y+12; i++) {
+        image[i] = Font12_Table[12*1+i];
     }
 }
 
