@@ -101,9 +101,9 @@ void EPD_init_full(void) {
     EPD_SendData(0x3B);
 
     EPD_SendCmd(0x01); //Driver output control
-    EPD_SendData(0xF9);
-    EPD_SendData(0x00);
-    EPD_SendData(0x00);
+    EPD_SendData(0x27); // F9
+    EPD_SendData(0x01); // 00
+    EPD_SendData(0x01); // 00
 
     EPD_SendCmd(0x11); //data entry mode
     EPD_SendData(0x01);
@@ -113,8 +113,8 @@ void EPD_init_full(void) {
     EPD_SendData(0x0F);    //0x0F-->(15+1)*8=128
 
     EPD_SendCmd(0x45); //set Ram-Y address start/end position
-    EPD_SendData(0xF9);   //0xF9-->(249+1)=250
-    EPD_SendData(0x00);
+    EPD_SendData(0x27);   //0xF9-->(249+1)=250
+    EPD_SendData(0x01);
     EPD_SendData(0x00);
     EPD_SendData(0x00);
 
@@ -145,8 +145,8 @@ void EPD_init_full(void) {
     EPD_SendCmd(0x4E);   // set RAM x address count to 0;
     EPD_SendData(0x00);
     EPD_SendCmd(0x4F);   // set RAM y address count to 0X127;
-    EPD_SendData(0xF9);
-    EPD_SendData(0x00);
+    EPD_SendData(0xF9); // F9
+    EPD_SendData(0x00); // 00
     EPD_WaitBusy();
 }
 
@@ -165,7 +165,7 @@ void EPD_Display(uint8_t *Image) {
     EPD_SendCmd(0x24);
     for (UWORD j = 0; j < HEIGHT; j++) {
         for (UWORD i = 0; i < WIDTH; i++) {
-            EPD_SendData(Image[i + j * WIDTH]);
+            EPD_SendData(Image[i + j*WIDTH]);
         }
     }
     EPD_RefreshDisplay();
@@ -180,7 +180,7 @@ void EPD_DisplayPart(UBYTE *Image)
         }
     }
 
-    EPD_RefreshDisplay();
+    EPD_RefreshDisplayPart();
 }
 
 void EPD_Sleep() {

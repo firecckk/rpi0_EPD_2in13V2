@@ -20,11 +20,18 @@ void GenerateTestPattern(UBYTE *image) {
     }
 }
 
-void drawFront(UBYTE *image, UWORD x, UWORD y, const char *text, bool color) {
-    for(int i = y; i<y+12; i++) {
-        image[i] = Font12_Table[12*1+i];
+void drawFont(UBYTE *image, UWORD x, UWORD y, const char *text, bool color) {
+    for(int i = 0; i<12; i++) {
+        image[x+(i+y)*WIDTH] = Font12_Table[12*65+i];
     }
 }
+
+void drawLine(UBYTE *image, UWORD x, UWORD y, UWORD dx, UWORD dy, bool color) {
+    for (int i = 0; i < dy; i++) {
+        image[i+x*WIDTH] = 0xFF; 
+    }
+}
+
 
 UBYTE DEV_Module_Init(void) {
     // 初始化GPIO
@@ -81,6 +88,7 @@ int main() {
         printf("Failed to allocate memory\n");
         return -1;
     }
+    memset(image, 0x00, buffer_size);
 
     // 演示1: 全刷模式
     printf("Full refresh test\n"); 
@@ -89,10 +97,18 @@ int main() {
     // 生成测试图案并显示
     GenerateTestPattern(image);
     EPD_Display(image);
+    DEV_Delay_ms(1000);
+    drawLine(image, 10, 0, 8, 8, 1);
+    char a = '1'; 
+    drawFont(image, 0, 0, &a, 1);
+    drawFont(image, 1, 12, &a, 1);
+    EPD_Display(image);
     printf("image displayed\n");
     DEV_Delay_ms(10000);
     
     // 清屏
+    EPD_Clear();
+    DEV_Delay_ms(1000);
     EPD_Clear();
     DEV_Delay_ms(1000);
 

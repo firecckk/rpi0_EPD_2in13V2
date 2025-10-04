@@ -14,7 +14,7 @@
 #define EPD_2IN13_V2_HEIGHT     250 
 
 #define WIDTH ((EPD_2IN13_V2_WIDTH % 8 == 0)? (EPD_2IN13_V2_WIDTH / 8 ): (EPD_2IN13_V2_WIDTH / 8 + 1))
-#define HEIGHT (EPD_2IN13_V2_HEIGHT)
+#define HEIGHT (EPD_2IN13_V2_HEIGHT) 
 
 // 数据类型定义
 #define UBYTE   uint8_t
