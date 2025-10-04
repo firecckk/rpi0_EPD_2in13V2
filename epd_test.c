@@ -74,8 +74,8 @@ int main() {
     printf("EPD_2IN13_V2 Demo Start\n");
     
     DEV_Module_Init();
-    
     EPD_init_full();
+
     EPD_Clear();
     DEV_Delay_ms(500);
 
@@ -97,7 +97,12 @@ int main() {
     // 生成测试图案并显示
     GenerateTestPattern(image);
     EPD_Display(image);
-    DEV_Delay_ms(1000);
+    DEV_Delay_ms(2000);
+
+    EPD_Clear();
+    DEV_Delay_ms(500);    
+
+    //EPD_RefreshDisplay();
     drawLine(image, 10, 0, 8, 8, 1);
     char a = '1'; 
     drawFont(image, 0, 0, &a, 1);

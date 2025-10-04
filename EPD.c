@@ -115,7 +115,7 @@ void EPD_init_full(void) {
     EPD_SendCmd(0x45); //set Ram-Y address start/end position
     EPD_SendData(0x27);   //0xF9-->(249+1)=250
     EPD_SendData(0x01);
-    EPD_SendData(0x00);
+    EPD_SendData(0x2E);
     EPD_SendData(0x00);
 
     EPD_SendCmd(0x3C); //BorderWavefrom
@@ -145,8 +145,8 @@ void EPD_init_full(void) {
     EPD_SendCmd(0x4E);   // set RAM x address count to 0;
     EPD_SendData(0x00);
     EPD_SendCmd(0x4F);   // set RAM y address count to 0X127;
-    EPD_SendData(0xF9); // F9
-    EPD_SendData(0x00); // 00
+    EPD_SendData(0x27); // F9
+    EPD_SendData(0x01); // 00
     EPD_WaitBusy();
 }
 
@@ -161,11 +161,11 @@ void EPD_Clear() {
     EPD_RefreshDisplay();
 }
 
-void EPD_Display(uint8_t *Image) {
+void EPD_Display(UBYTE *Image) {
     EPD_SendCmd(0x24);
     for (UWORD j = 0; j < HEIGHT; j++) {
         for (UWORD i = 0; i < WIDTH; i++) {
-            EPD_SendData(Image[i + j*WIDTH]);
+            EPD_SendData(Image[i + j * WIDTH]);
         }
     }
     EPD_RefreshDisplay();
