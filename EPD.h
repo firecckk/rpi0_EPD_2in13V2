@@ -37,6 +37,8 @@ static void EPD_WaitBusy(void);
 void EPD_RefreshDisplay(void);
 void EPD_RefreshDisplayPart(void);
 
+UBYTE DEV_Hardware_Init(void);
+void DEV_Hardware_Exit(void)
 void EPD_init_full(void);
 void EPD_Clear(void);
 void EPD_Display(UBYTE *Image);

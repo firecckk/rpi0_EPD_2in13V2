@@ -88,6 +88,44 @@ void EPD_RefreshDisplayPart(void) {
 }
 
 /*------------------------- 初始化 -------------------------*/
+UBYTE DEV_Hardware_Init(void) {
+    // 初始化GPIO
+    GPIOD_Export();
+    GPIOD_Direction(EPD_BUSY_PIN, GPIOD_IN);
+    GPIOD_Direction(EPD_RST_PIN,  GPIOD_OUT);
+    GPIOD_Direction(EPD_DC_PIN,   GPIOD_OUT);
+    GPIOD_Direction(EPD_CS_PIN,   GPIOD_OUT);
+    GPIOD_Direction(EPD_PWR_PIN,  GPIOD_OUT);
+    
+    // 设置默认电平
+    GPIOD_Write(EPD_CS_PIN, 1);
+    GPIOD_Write(EPD_PWR_PIN, 1);
+
+    // 初始化硬件SPI
+    DEV_HARDWARE_SPI_begin("/dev/spidev0.0");
+    DEV_HARDWARE_SPI_setSpeed(10000000);
+    return 0;
+}
+
+void DEV_Hardware_Exit(void) {
+    // 关闭硬件SPI
+    DEV_HARDWARE_SPI_end();
+
+    // 重置所有GPIO状态
+    GPIOD_Write(EPD_CS_PIN, 0);
+    GPIOD_Write(EPD_PWR_PIN, 0);
+    GPIOD_Write(EPD_DC_PIN, 0);
+    GPIOD_Write(EPD_RST_PIN, 0);
+
+    // 释放GPIO资源
+    GPIOD_Unexport(EPD_PWR_PIN);
+    GPIOD_Unexport(EPD_DC_PIN);
+    GPIOD_Unexport(EPD_RST_PIN);
+    GPIOD_Unexport(EPD_BUSY_PIN);
+    GPIOD_Unexport_GPIO();
+}
+
+// 全刷参数
 void EPD_init_full(void) {
     EPD_Reset();
 
