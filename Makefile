@@ -1,56 +1,34 @@
-# 编译器设置
-CC := gcc
-CFLAGS := -Wall -Wextra -MMD -MP
-LDFLAGS := -lgpiod
+# 内核模块编译Makefile
+obj-m := epd_console.o
+epd_console-objs := obj/epd_console.o obj/EPD.o obj/RPI_gpio.o obj/dev_Hardware_SPI.o
 
-# 调试模式选项（默认开启 DEBUG 宏）
+# 内核源码目录（根据你的树莓派内核版本修改）
+KDIR := /lib/modules/$(shell uname -r)/build
+# 当前目录
+PWD := $(shell pwd)
+
+EXTRA_CFLAGS += -I$(KDIR)/include
+
 DEBUG ?= 1
-ifeq ($(DEBUG), 1)
-    CFLAGS += -g -O0 -DDEBUG
-else
-    CFLAGS += -O2
+ifeq ($(DEBUG),1)
+    EXTRA_CFLAGS += -DDEBUG -g
 endif
 
-# 目录设置
-SRC_DIR := .
+# 创建obj目录
 OBJ_DIR := obj
-BIN_DIR := bin
+$(shell mkdir -p $(OBJ_DIR))
 
-# 源文件列表
-SRCS := clear.c epd_test.c EPD.c dev_hardware_SPI.c RPI_gpiod.c
-OBJS := $(SRCS:%.c=$(OBJ_DIR)/%.o)
-DEPS := $(OBJS:.o=.d)  # 依赖文件（.d）
+# 默认编译目标
+all: $(epd_console-objs)
+	$(MAKE) -C $(KDIR) M=$(PWD) modules
 
-# 可执行文件
-EXECUTABLES := clear_screen epd_test
-BIN_TARGETS := $(EXECUTABLES:%=$(BIN_DIR)/%)
-
-# 默认构建所有可执行文件
-all: $(BIN_TARGETS)
-
-# 创建目录（如果不存在）
-$(OBJ_DIR):
-	mkdir -p $(OBJ_DIR)
-
-$(BIN_DIR):
-	mkdir -p $(BIN_DIR)
-
-# 编译规则：.c -> .o
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
-	$(CC) $(CFLAGS) -c $< -o $@
-
-# 链接规则：.o -> 可执行文件
-$(BIN_DIR)/clear_screen: $(OBJ_DIR)/clear.o $(OBJ_DIR)/EPD.o $(OBJ_DIR)/dev_hardware_SPI.o $(OBJ_DIR)/RPI_gpiod.o | $(BIN_DIR)
-	$(CC) $^ $(LDFLAGS) -o $@
-
-$(BIN_DIR)/epd_test: $(OBJ_DIR)/epd_test.o $(OBJ_DIR)/EPD.o $(OBJ_DIR)/dev_hardware_SPI.o $(OBJ_DIR)/RPI_gpiod.o | $(BIN_DIR)
-	$(CC) $^ $(LDFLAGS) -o $@
-
-# 包含自动生成的依赖文件
--include $(DEPS)
+# 自定义规则：将.c文件编译到obj目录
+obj/%.o: %.c
+	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -c $< -o $@
 
 # 清理构建文件
 clean:
-	rm -rf $(OBJ_DIR) $(BIN_DIR)
+	$(MAKE) -C $(KDIR) M=$(PWD) clean
+	rm -rf $(OBJ_DIR)
 
 .PHONY: all clean

@@ -1,17 +1,13 @@
-// epd_console.c - E-Paper Display Console Driver
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/tty.h>
-#include <linux/tty_driver.h>
-#include <linux/tty_flip.h>
-#include <linux/console.h>
 #include <linux/spi/spi.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
 
 #include "EPD.h"
 
-#define DRIVER_NAME "epd_console"
+#define DRIVER_NAME "epd_tty"
 #define EPD_TTY_MAJOR 240
 #define EPD_TTY_MINORS 1
 
@@ -35,10 +31,10 @@ static void test(UBYTE * image) {
     }
     
     EPD_Display(image);
-    DEV_Delay_ms(4000);
+    msleep(4000);
 
     EPD_Clear();
-    DEV_Delay_ms(500); 
+    msleep(500); 
 }
 
 // TTY操作函数集
@@ -48,9 +44,9 @@ static int epd_tty_open(struct tty_struct *tty, struct file *file)
     const int buffer_size = WIDTH * HEIGHT;
  
     // 分配图像内存
-    UBYTE *image = (UBYTE *)malloc(buffer_size);
+    UBYTE *image = (UBYTE *)kmalloc(buffer_size, GFP_KERNEL);
     if(image == NULL) {
-        printf("Failed to allocate memory\n");
+        Debug("Failed to allocate memory\n");
         return -1;
     }
     memset(image, 0x00, buffer_size);
@@ -65,14 +61,13 @@ static void epd_tty_close(struct tty_struct *tty, struct file *file)
     // 可添加清理代码
 }
 
-static int epd_tty_write(struct tty_struct *tty, 
-                        const unsigned char *buf, int count)
+static ssize_t epd_tty_write(struct tty_struct *tty, const u8 *buf, size_t count)
 {
-    epd_display_text(buf, count);
+    //epd_display_text(buf, count);
     return count;
 }
 
-static int epd_tty_write_room(struct tty_struct *tty)
+static unsigned int epd_tty_write_room(struct tty_struct *tty)
 {
     return 4096;
 }
@@ -82,19 +77,6 @@ static const struct tty_operations epd_tty_ops = {
     .close = epd_tty_close,
     .write = epd_tty_write,
     .write_room = epd_tty_write_room,
-};
-
-// Console接口
-static void epd_console_write(struct console *co, const char *s, unsigned count)
-{
-    epd_display_text(s, count);
-}
-
-static struct console epd_console = {
-    .name = "ttyEPD",
-    .write = epd_console_write,
-    .flags = CON_PRINTBUFFER,
-    .index = -1,
 };
 
 // 初始化TTY驱动
@@ -135,15 +117,13 @@ static int __init epd_driver_init(void)
     EPD_init_full();
 
     EPD_Clear();
-    usleep(500);
+    msleep(500);
     
     // 初始化tty驱动
     int ret = epd_tty_init();
     if (ret)
         return ret;
         
-    register_console(&epd_console);
-    
     return 0;
 }
 
@@ -151,8 +131,6 @@ static void __exit epd_driver_exit(void)
 {
     tty_unregister_driver(epd_tty_driver);
     tty_driver_kref_put(epd_tty_driver);
-    unregister_console(&epd_console);
-
     DEV_Hardware_Exit();
     
     pr_info("EPD Console Driver Removed\n");

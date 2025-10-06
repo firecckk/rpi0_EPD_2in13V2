@@ -1,4 +1,5 @@
 #include "EPD.h"
+#include <linux/delay.h>
 
 const unsigned char EPD_2IN13_V2_lut_full_update[]= {
     0x80,0x60,0x40,0x00,0x00,0x00,0x00,             //LUT0: BB:     VS 0 ~7
@@ -38,36 +39,36 @@ const unsigned char EPD_2IN13_V2_lut_partial_update[]= { //20 bytes
 
 /*------------------------- 底层硬件操作 -------------------------*/
 // 复位时序（保持原有时序参数）
-static void EPD_Reset() {
-    GPIOD_Write(EPD_RST_PIN, 1);   // 注意：使用直接GPIO操作
-    usleep(200000);
-    GPIOD_Write(EPD_RST_PIN, 0);
-    usleep(2000);
-    GPIOD_Write(EPD_RST_PIN, 1);
-    usleep(200000);
+static void EPD_Reset(void) {
+    GPIO_Write(EPD_RST_PIN, 1);   // 注意：使用直接GPIO操作
+    msleep(200);
+    GPIO_Write(EPD_RST_PIN, 0);
+    msleep(200);
+    GPIO_Write(EPD_RST_PIN, 1);
+    msleep(200);
 }
 
 // 发送命令（合并CS和DC控制）
 static void EPD_SendCmd(uint8_t cmd) {
-    GPIOD_Write(EPD_DC_PIN, 0);    // DC=0表示命令
-    GPIOD_Write(EPD_CS_PIN, 0);
+    GPIO_Write(EPD_DC_PIN, 0);    // DC=0表示命令
+    GPIO_Write(EPD_CS_PIN, 0);
     DEV_HARDWARE_SPI_TransferByte(cmd);      // 直接调用SPI传输
-    GPIOD_Write(EPD_CS_PIN, 1);
+    GPIO_Write(EPD_CS_PIN, 1);
 }
 
 // 发送数据（优化为单次操作）
 static void EPD_SendData(uint8_t dat) {
-    GPIOD_Write(EPD_DC_PIN, 1);    // DC=1表示数据
-    GPIOD_Write(EPD_CS_PIN, 0);
+    GPIO_Write(EPD_DC_PIN, 1);    // DC=1表示数据
+    GPIO_Write(EPD_CS_PIN, 0);
     DEV_HARDWARE_SPI_TransferByte(dat);
-    GPIOD_Write(EPD_CS_PIN, 1);
+    GPIO_Write(EPD_CS_PIN, 1);
 }
 
 // 忙等待
 static void EPD_WaitBusy(void) {
     Debug("e-Paper busy\r\n");
-    while(GPIOD_Read(EPD_BUSY_PIN) == 1) {      //LOW: idle, HIGH: busy
-        usleep(100000);
+    while(GPIO_Read(EPD_BUSY_PIN) == 1) {      //LOW: idle, HIGH: busy
+        msleep(100);
     }
     Debug("e-Paper busy release\r\n");
 }
@@ -90,16 +91,16 @@ void EPD_RefreshDisplayPart(void) {
 /*------------------------- 初始化 -------------------------*/
 UBYTE DEV_Hardware_Init(void) {
     // 初始化GPIO
-    GPIOD_Export();
-    GPIOD_Direction(EPD_BUSY_PIN, GPIOD_IN);
-    GPIOD_Direction(EPD_RST_PIN,  GPIOD_OUT);
-    GPIOD_Direction(EPD_DC_PIN,   GPIOD_OUT);
-    GPIOD_Direction(EPD_CS_PIN,   GPIOD_OUT);
-    GPIOD_Direction(EPD_PWR_PIN,  GPIOD_OUT);
+    GPIO_Export();
+    GPIO_Direction(EPD_BUSY_PIN, GPIO_IN);
+    GPIO_Direction(EPD_RST_PIN,  GPIO_OUT);
+    GPIO_Direction(EPD_DC_PIN,   GPIO_OUT);
+    GPIO_Direction(EPD_CS_PIN,   GPIO_OUT);
+    GPIO_Direction(EPD_PWR_PIN,  GPIO_OUT);
     
     // 设置默认电平
-    GPIOD_Write(EPD_CS_PIN, 1);
-    GPIOD_Write(EPD_PWR_PIN, 1);
+    GPIO_Write(EPD_CS_PIN, 1);
+    GPIO_Write(EPD_PWR_PIN, 1);
 
     // 初始化硬件SPI
     DEV_HARDWARE_SPI_begin("/dev/spidev0.0");
@@ -112,17 +113,16 @@ void DEV_Hardware_Exit(void) {
     DEV_HARDWARE_SPI_end();
 
     // 重置所有GPIO状态
-    GPIOD_Write(EPD_CS_PIN, 0);
-    GPIOD_Write(EPD_PWR_PIN, 0);
-    GPIOD_Write(EPD_DC_PIN, 0);
-    GPIOD_Write(EPD_RST_PIN, 0);
+    GPIO_Write(EPD_CS_PIN, 0);
+    GPIO_Write(EPD_PWR_PIN, 0);
+    GPIO_Write(EPD_DC_PIN, 0);
+    GPIO_Write(EPD_RST_PIN, 0);
 
     // 释放GPIO资源
-    GPIOD_Unexport(EPD_PWR_PIN);
-    GPIOD_Unexport(EPD_DC_PIN);
-    GPIOD_Unexport(EPD_RST_PIN);
-    GPIOD_Unexport(EPD_BUSY_PIN);
-    GPIOD_Unexport_GPIO();
+    GPIO_Unexport(EPD_PWR_PIN);
+    GPIO_Unexport(EPD_DC_PIN);
+    GPIO_Unexport(EPD_RST_PIN);
+    GPIO_Unexport(EPD_BUSY_PIN);
 }
 
 // 全刷参数
@@ -228,5 +228,5 @@ void EPD_Sleep() {
     
     EPD_SendCmd(0x10);
     EPD_SendData(0x01);
-    usleep(100000);
+    msleep(100);
 }

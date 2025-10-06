@@ -31,7 +31,6 @@
 #ifndef __GPIOD_
 #define __GPIOD_
 
-#include <stdio.h>
 #include <gpiod.h>
 
 #define GPIOD_IN  0
@@ -42,13 +41,6 @@
 
 #define NUM_MAXBUF  4
 #define DIR_MAXSIZ  60
-
-#define GPIOD_DEBUG 0
-#if GPIOD_DEBUG 
-	#define GPIOD_Debug(__info,...) printf("Debug: " __info,##__VA_ARGS__)
-#else
-	#define GPIOD_Debug(__info,...)  
-#endif 
 
 // BCM GPIO for Jetson nano
 #define GPIO4 4 // 7, 4
