@@ -52,7 +52,7 @@ static void EPD_Reset(void) {
 static void EPD_SendCmd(uint8_t cmd) {
     GPIO_Write(EPD_DC_PIN, 0);    // DC=0表示命令
     GPIO_Write(EPD_CS_PIN, 0);
-    DEV_HARDWARE_SPI_TransferByte(cmd);      // 直接调用SPI传输
+    SPI_TransferByte(cmd);      // 直接调用SPI传输
     GPIO_Write(EPD_CS_PIN, 1);
 }
 
@@ -60,7 +60,7 @@ static void EPD_SendCmd(uint8_t cmd) {
 static void EPD_SendData(uint8_t dat) {
     GPIO_Write(EPD_DC_PIN, 1);    // DC=1表示数据
     GPIO_Write(EPD_CS_PIN, 0);
-    DEV_HARDWARE_SPI_TransferByte(dat);
+    SPI_TransferByte(dat);
     GPIO_Write(EPD_CS_PIN, 1);
 }
 
@@ -90,6 +90,8 @@ void EPD_RefreshDisplayPart(void) {
 
 /*------------------------- 初始化 -------------------------*/
 UBYTE DEV_Hardware_Init(void) {
+    spi_init();
+
     // 初始化GPIO
     GPIO_Export();
     GPIO_Direction(EPD_BUSY_PIN, GPIO_IN);
@@ -102,15 +104,11 @@ UBYTE DEV_Hardware_Init(void) {
     GPIO_Write(EPD_CS_PIN, 1);
     GPIO_Write(EPD_PWR_PIN, 1);
 
-    // 初始化硬件SPI
-    DEV_HARDWARE_SPI_begin("/dev/spidev0.0");
-    DEV_HARDWARE_SPI_setSpeed(10000000);
     return 0;
 }
 
 void DEV_Hardware_Exit(void) {
-    // 关闭硬件SPI
-    DEV_HARDWARE_SPI_end();
+    spi_close();
 
     // 重置所有GPIO状态
     GPIO_Write(EPD_CS_PIN, 0);
