@@ -1,11 +1,17 @@
 #ifndef __DEV_HARDWARE_SPI_
 #define __DEV_HARDWARE_SPI_
 
+typedef unsigned char  uint8_t;
+typedef unsigned short uint16_t; 
+typedef unsigned int uint32_t;
+
 #define DEV_HARDWARE_SPI_DEBUG 0
 #if DEV_HARDWARE_SPI_DEBUG
 #define DEV_HARDWARE_SPI_Debug(__info,...) pr_info("SPI DEBUG: " __info, ##__VA_ARGS__)
+#define DEV_HARDWARE_SPI_Error(__info,...) pr_error("SPI DEBUG: " __info, ##__VA_ARGS__)
 #else
 #define DEV_HARDWARE_SPI_Debug(__info,...)
+#define DEV_HARDWARE_SPI_Error(__info,...)
 #endif
 
 #define SPI_CPHA        0x01

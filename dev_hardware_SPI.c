@@ -1,6 +1,6 @@
 #include "dev_hardware_SPI.h"
 
-#include <sys/ioctl.h> 
+#include <linux/ioctl.h> 
 #include <linux/types.h> 
 #include <linux/spi/spidev.h> 
 
@@ -31,25 +31,20 @@ void DEV_HARDWARE_SPI_begin(char *SPI_device)
     //device
     int ret = 0; 
     if((hardware_SPI.fd = open(SPI_device, O_RDWR )) < 0)  {
-        perror("Failed to open SPI device.\n");  
-        printf("Failed to open SPI device\r\n");
-        DEV_HARDWARE_SPI_Debug("Failed to open SPI device\r\n");
-        exit(1); 
+        DEV_HARDWARE_SPI_Error("Failed to open SPI device\r\n");
+        //exit(1); 
     } else {
-        printf("open : %s\r\n", SPI_device);
         DEV_HARDWARE_SPI_Debug("open : %s\r\n", SPI_device);
     }
     hardware_SPI.mode = 0;
     
     ret = ioctl(hardware_SPI.fd, SPI_IOC_WR_BITS_PER_WORD, &bits);
     if (ret == -1) {
-        printf("can't set bits per word\r\n");
         DEV_HARDWARE_SPI_Debug("can't set bits per word\r\n"); 
     }
  
     ret = ioctl(hardware_SPI.fd, SPI_IOC_RD_BITS_PER_WORD, &bits);
     if (ret == -1) {
-        printf("can't get bits per word\r\n");
         DEV_HARDWARE_SPI_Debug("can't get bits per word\r\n"); 
     }
     tr.bits_per_word = bits;
@@ -67,8 +62,8 @@ void DEV_HARDWARE_SPI_beginSet(char *SPI_device, SPIMode mode, uint32_t speed)
     int ret = 0; 
     hardware_SPI.mode = 0;
     if((hardware_SPI.fd = open(SPI_device, O_RDWR )) < 0)  {
-        perror("Failed to open SPI device.\n");  
-        exit(1); 
+        DEV_HARDWARE_SPI_Error("Failed to open SPI device.\n");  
+        //exit(1); 
     } else {
         DEV_HARDWARE_SPI_Debug("open : %s\r\n", SPI_device);
     }
@@ -97,8 +92,7 @@ void DEV_HARDWARE_SPI_end(void)
 {
     hardware_SPI.mode = 0;
     if (close(hardware_SPI.fd) != 0){
-        DEV_HARDWARE_SPI_Debug("Failed to close SPI device\r\n");
-        perror("Failed to close SPI device.\n");  
+        DEV_HARDWARE_SPI_Error("Failed to close SPI device\r\n");
     }
 }
 

@@ -176,7 +176,9 @@ void EPD_init_full(void) {
     EPD_SendData(EPD_2IN13_V2_lut_full_update[75]);
 
     EPD_SendCmd(0x32);
-    for(UBYTE count = 0; count < 70; count++) {
+    
+    UBYTE count;
+    for(count = 0; count < 70; count++) {
         EPD_SendData(EPD_2IN13_V2_lut_full_update[count]);
     }
 
@@ -190,9 +192,10 @@ void EPD_init_full(void) {
 
 /*------------------------- 高级功能 -------------------------*/
 void EPD_Clear() {
+    UWORD j,i;
     EPD_SendCmd(0x24);
-    for (UWORD j = 0; j < HEIGHT; j++) {
-        for (UWORD i = 0; i < WIDTH; i++) {
+    for (j = 0; j < HEIGHT; j++) {
+        for (i = 0; i < WIDTH; i++) {
             EPD_SendData(0xFF);
         }
     }
@@ -200,9 +203,10 @@ void EPD_Clear() {
 }
 
 void EPD_Display(UBYTE *Image) {
+    UWORD j,i;
     EPD_SendCmd(0x24);
-    for (UWORD j = 0; j < HEIGHT; j++) {
-        for (UWORD i = 0; i < WIDTH; i++) {
+    for (j = 0; j < HEIGHT; j++) {
+        for (i = 0; i < WIDTH; i++) {
             EPD_SendData(Image[i + j * WIDTH]);
         }
     }
@@ -211,9 +215,10 @@ void EPD_Display(UBYTE *Image) {
 
 void EPD_DisplayPart(UBYTE *Image)
 {
+    UWORD j,i;
     EPD_SendCmd(0x24);
-    for (UWORD j = 0; j < HEIGHT; j++) {
-        for (UWORD i = 0; i < WIDTH; i++) {
+    for (j = 0; j < HEIGHT; j++) {
+        for (i = 0; i < WIDTH; i++) {
             EPD_SendData(Image[i + j * WIDTH]);
         }
     }

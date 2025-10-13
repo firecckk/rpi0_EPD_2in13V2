@@ -1,7 +1,7 @@
 #ifndef EPD_H
 #define EPD_H
 
-#include <linux/kernel.h>
+//#include <linux/module.h>
 #include "Debug.h"
 #include "RPI_gpio.h"
 #include "dev_hardware_SPI.h"
@@ -13,9 +13,9 @@
 #define HEIGHT (EPD_2IN13_V2_HEIGHT) 
 
 // 数据类型定义
-#define UBYTE   u8 
-#define UWORD   u16 
-#define UDOUBLE u32 
+typedef unsigned char UBYTE;
+typedef unsigned short UWORD; 
+typedef unsigned int UDOUBLE; 
 
 // 硬件引脚定义（直接初始化）
 static const int EPD_RST_PIN     = 17;
