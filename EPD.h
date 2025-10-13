@@ -4,7 +4,6 @@
 //#include <linux/module.h>
 #include "Debug.h"
 #include "RPI_gpio.h"
-#include "dev_hardware_SPI.h"
 
 #define EPD_2IN13_V2_WIDTH      122 
 #define EPD_2IN13_V2_HEIGHT     250 
