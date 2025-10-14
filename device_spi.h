@@ -3,11 +3,8 @@
 
 #include <linux/spi/spi.h>
 
-// SPI设备全局指针
-struct spi_device *g_spi = NULL;
-
-int spi_init();
-int spi_close();
-int SPI_TransferByte(uint8_t data)
+int spi_init(void);
+void spi_close(void);
+int SPI_TransferByte(uint8_t data);
 
 #endif

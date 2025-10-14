@@ -49,7 +49,7 @@ static void EPD_Reset(void) {
 }
 
 // 发送命令（合并CS和DC控制）
-static void EPD_SendCmd(uint8_t cmd) {
+static void EPD_SendCmd(UBYTE cmd) {
     GPIO_Write(EPD_DC_PIN, 0);    // DC=0表示命令
     GPIO_Write(EPD_CS_PIN, 0);
     SPI_TransferByte(cmd);      // 直接调用SPI传输
@@ -57,7 +57,7 @@ static void EPD_SendCmd(uint8_t cmd) {
 }
 
 // 发送数据（优化为单次操作）
-static void EPD_SendData(uint8_t dat) {
+static void EPD_SendData(UBYTE dat) {
     GPIO_Write(EPD_DC_PIN, 1);    // DC=1表示数据
     GPIO_Write(EPD_CS_PIN, 0);
     SPI_TransferByte(dat);

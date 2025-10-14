@@ -1,9 +1,13 @@
 #include "device_spi.h"
 
+// SPI设备全局指针
+struct spi_device *epd_spi_device = NULL;
+
+
 // SPI驱动probe
-int epd_spi_probe(struct spi_device *spi)
+static int epd_spi_probe(struct spi_device *spi)
 {
-    g_spi = spi;
+    epd_spi_device = spi;
     spi->mode = SPI_MODE_0;
     spi->max_speed_hz = 10000000;
     spi_setup(spi);
@@ -11,11 +15,10 @@ int epd_spi_probe(struct spi_device *spi)
     return 0;
 }
 
-static int epd_spi_remove(struct spi_device *spi)
+static void epd_spi_remove(struct spi_device *spi)
 {
-    g_spi = NULL;
+    epd_spi_device = NULL;
     pr_info("epd_console: SPI device removed\n");
-    return 0;
 }
 
 static struct spi_driver epd_spi_driver = {
@@ -47,28 +50,29 @@ int SPI_TransferByte(uint8_t data)
     struct spi_message m;
     spi_message_init(&m);
     spi_message_add_tail(&t, &m);
-    if (!g_spi) return 0xFF;
-    spi_sync(g_spi, &m);
+    if (!epd_spi_device) return 0xFF;
+    spi_sync(epd_spi_device, &m);
     return rx;
 }
 
-static int spi_init() {
+int spi_init(void) {
     // 注册SPI设备
-    struct spi_master *master;
-    master = spi_busnum_to_master(epd_spi_board_info.bus_num);
-    if (!master) {
-        pr_err("epd_console: spi_busnum_to_master(%d) returned NULL\n", epd_spi_board_info.bus_num);
-        return -ENODEV;
-    }
+    struct spi_controller *master = NULL;
+    //master = spi_controller_get(epd_spi_board_info.bus_num);
+    //if (!master) {
+    //    pr_err("epd_console: spi_busnum_to_master(%d) returned NULL\n", epd_spi_board_info.bus_num);
+    //    return -ENODEV;
+    //}
     epd_spi_device = spi_new_device(master, &epd_spi_board_info);
     if (!epd_spi_device) {
         pr_err("epd_console: Failed to create SPI device\n");
         return -ENODEV;
     }
     spi_register_driver(&epd_spi_driver);
+    return 0;
 }
 
-int spi_close() {
+void spi_close(void) {
     // 关闭硬件SPI
     spi_unregister_driver(&epd_spi_driver);
     if (epd_spi_device) spi_unregister_device(epd_spi_device);

@@ -1,8 +1,12 @@
 #include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/fs.h>
+#include <linux/init.h>
+//#include <linux/fs.h>
 #include <linux/tty.h>
 #include <linux/delay.h>
+
+MODULE_LICENSE("GPL v2");
+//MODULE_AUTHOR("author");
+//MODULE_DESCRIPTION("E-Paper Display Console Driver");
 
 #include "EPD.h"
 
@@ -13,9 +17,9 @@
 #define EPD_WIDTH 122
 #define EPD_HEIGHT 250
 
+
 // 全局变量
 static struct tty_driver *epd_tty_driver;
-static struct spi_device *epd_spi_device;
 
 // 显示测试
 static void test(UBYTE * image) {
@@ -139,6 +143,3 @@ static void __exit epd_driver_exit(void)
 module_init(epd_driver_init);
 module_exit(epd_driver_exit);
 
-MODULE_AUTHOR("author");
-MODULE_DESCRIPTION("E-Paper Display Console Driver");
-MODULE_LICENSE("GPL");
