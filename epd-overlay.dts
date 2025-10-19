@@ -1,0 +1,41 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+    compatible = "brcm,bcm2835";
+
+    fragment@0 {
+        target = <&spi0>;
+        __overlay__ {
+            status = "okay";
+            
+            spidev@0 {
+                status = "disabled";
+            };
+
+            epd@0 {
+                compatible = "waveshare,epd2in13v2";
+                reg = <0>;
+                spi-max-frequency = <10000000>;
+
+                /* GPIO 控制引脚（BCM编号） */
+                dc-gpios = <&gpio 25 GPIO_ACTIVE_HIGH>;     // DC
+                reset-gpios = <&gpio 17 GPIO_ACTIVE_HIGH>;  // RESET
+                busy-gpios = <&gpio 24 GPIO_ACTIVE_HIGH>;   // BUSY
+                pwr-gpios = <&gpio 18 GPIO_ACTIVE_HIGH>;    // POWER
+                cs-gpios = <&gpio 8 GPIO_ACTIVE_LOW>;       // CS0 (硬件CS)
+            };
+        };
+    };
+
+    fragment@1 {
+        target = <&gpio>;
+        __overlay__ {
+            epd_pins: epd_pins {
+                brcm,pins = <17 18 24 25>;  // 所有GPIO列表
+                brcm,function = <1 1 0 1>;  // 1=输出, 0=输入 (对应BUSY为输入)
+                brcm,pull = <0 0 2 0>;      // 0=none, 2=上拉 (BUSY需要上拉)
+            };
+        };
+    };
+};
