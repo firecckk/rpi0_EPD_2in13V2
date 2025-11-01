@@ -8,6 +8,8 @@
 #include <linux/gpio/consumer.h>
 #include <linux/cdev.h>
 
+static struct class *epd_class;
+
 struct epd_dev {
     struct spi_device *spi;
     struct gpio_desc *gdc;
@@ -84,8 +86,7 @@ static uint8_t EPD_TransferByte(struct epd_dev *epd, uint8_t data)
         .tx_buf = &data,
         .rx_buf = &rx,
         .len = 1,
-        .delay_usecs = 5,      // 对应原代码中的 DEV_HARDWARE_SPI_SetDataInterval(5)
-        .speed_hz = 20000000,  // 对应原代码中的 setSpeed(20000000)
+        .speed_hz = 20000000,  // 20MHz
         .bits_per_word = 8,
     };
     struct spi_message msg;
@@ -158,15 +159,13 @@ err_unreg_chrdev:
 }
 
 /* 清理（devm_资源会自动释放），注销字符设备等 */
-static int epd_spi_remove(struct spi_device *spi)
+static void epd_spi_remove(struct spi_device *spi)
 {
     struct epd_dev *epd = spi_get_drvdata(spi);
     
     device_destroy(epd_class, epd->devt);
     cdev_del(&epd->cdev);
     unregister_chrdev_region(epd->devt, 1);
-    
-    return 0;
 }
 
 /* 注册 spi_driver，使用 of_match_table */
@@ -184,7 +183,7 @@ static int __init my_init(void)
 {
     int ret;
 
-    epd_class = class_create(THIS_MODULE, "epd");
+    epd_class = class_create("epd");  // Remove THIS_MODULE parameter
     if (IS_ERR(epd_class))
         return PTR_ERR(epd_class);
 
