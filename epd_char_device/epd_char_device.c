@@ -77,6 +77,39 @@ static const struct file_operations epd_fops = {
     .release = epd_release,
 };
 
+static uint8_t EPD_TransferByte(struct epd_dev *epd, uint8_t data) 
+{
+    uint8_t rx = 0;
+    struct spi_transfer xfer = {
+        .tx_buf = &data,
+        .rx_buf = &rx,
+        .len = 1,
+        .delay_usecs = 5,      // 对应原代码中的 DEV_HARDWARE_SPI_SetDataInterval(5)
+        .speed_hz = 20000000,  // 对应原代码中的 setSpeed(20000000)
+        .bits_per_word = 8,
+    };
+    struct spi_message msg;
+
+    spi_message_init(&msg);
+    spi_message_add_tail(&xfer, &msg);
+    spi_sync(epd->spi, &msg);
+    
+    return rx;
+}
+
+static void EPD_Init(struct epd_dev *epd)
+{
+    // 设置 SPI 模式
+    epd->spi->mode = SPI_MODE_0;
+    epd->spi->bits_per_word = 8;
+    epd->spi->max_speed_hz = 20000000;
+    spi_setup(epd->spi);
+
+    // 初始化 GPIO
+    gpiod_set_value(epd->gcs, 1);  // CS 初始高电平
+    EPD_Reset(epd);                 // 执行复位序列
+}
+
 static int epd_spi_probe(struct spi_device *spi)
 {
     struct device *dev = &spi->dev;
@@ -113,6 +146,9 @@ static int epd_spi_probe(struct spi_device *spi)
         goto err_unreg_chrdev;
 
     device_create(epd_class, dev, epd->devt, epd, "epd%d", 0);
+
+    // 初始化 SPI 设备
+    EPD_Init(epd);
 
     return 0;
 
