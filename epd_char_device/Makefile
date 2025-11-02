@@ -8,12 +8,14 @@ PWD := $(shell pwd)
 ccflags-y := -std=gnu99 -Wall
 
 all:
-    $(MAKE) -C $(KDIR) M=$(PWD) modules
+	$(MAKE) -C $(KDIR) M=$(PWD) modules
 
 clean:
-    $(MAKE) -C $(KDIR) M=$(PWD) clean
-    rm -f *.o *.ko *.mod.c *.mod.o *.order *.symvers
+	$(MAKE) -C $(KDIR) M=$(PWD) clean
+	rm -f *.o *.ko *.mod.c *.mod.o *.order *.symvers
+dt:
+	dtc -@ -I dts -O dtb -o epd_chrdev_overlay.dtbo epd_chrdev_overlay.dts
 
 # 检查代码风格
 checkpatch:
-    $(LINUX_SRC)/scripts/checkpatch.pl -f epd_char_device.c
+	$(LINUX_SRC)/scripts/checkpatch.pl -f epd_char_device.c

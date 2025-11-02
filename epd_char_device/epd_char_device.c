@@ -15,7 +15,6 @@ struct epd_dev {
     struct gpio_desc *gdc;
     struct gpio_desc *grst;
     struct gpio_desc *gbusy;
-    struct gpio_desc *gcs;
     struct gpio_desc *gpwr;
     struct cdev cdev;
     dev_t devt;
@@ -33,16 +32,12 @@ static void EPD_Reset(struct epd_dev *epd) {
 
 static void EPD_SendCmd(struct epd_dev *epd, unsigned char cmd) {
     gpiod_set_value(epd->gdc, 0); // cmd
-    gpiod_set_value(epd->gcs, 0);
     spi_write(epd->spi, &cmd, 1);
-    gpiod_set_value(epd->gcs, 1);
 }
 
 static void EPD_SendData(struct epd_dev *epd, unsigned char dat) {
     gpiod_set_value(epd->gdc, 1); // data
-    gpiod_set_value(epd->gcs, 0);
     spi_write(epd->spi, &dat, 1);
-    gpiod_set_value(epd->gcs, 1);
 }
 
 static void EPD_WaitBusy(struct epd_dev *epd) {
@@ -107,7 +102,6 @@ static void EPD_Init(struct epd_dev *epd)
     spi_setup(epd->spi);
 
     // 初始化 GPIO
-    gpiod_set_value(epd->gcs, 1);  // CS 初始高电平
     EPD_Reset(epd);                 // 执行复位序列
 }
 
@@ -127,11 +121,10 @@ static int epd_spi_probe(struct spi_device *spi)
     epd->gdc = devm_gpiod_get(dev, "dc", GPIOD_OUT_LOW);
     epd->grst = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
     epd->gbusy = devm_gpiod_get(dev, "busy", GPIOD_IN);
-    epd->gcs = devm_gpiod_get(dev, "cs", GPIOD_OUT_HIGH);
     epd->gpwr = devm_gpiod_get(dev, "pwr", GPIOD_OUT_HIGH);
 
     if (IS_ERR(epd->gdc) || IS_ERR(epd->grst) || 
-        IS_ERR(epd->gbusy) || IS_ERR(epd->gcs) || IS_ERR(epd->gpwr)) {
+        IS_ERR(epd->gbusy) || IS_ERR(epd->gpwr)) {
         dev_err(dev, "failed to get gpios\n");
         return -ENODEV;
     }
@@ -167,6 +160,13 @@ static void epd_spi_remove(struct spi_device *spi)
     cdev_del(&epd->cdev);
     unregister_chrdev_region(epd->devt, 1);
 }
+
+/* of_match_table */
+static const struct of_device_id epd_of_match[] = {
+    { .compatible = "waveshare,epd2in13v2" },
+    { /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, epd_of_match);
 
 /* 注册 spi_driver，使用 of_match_table */
 static struct spi_driver epd_spi_driver = {
@@ -208,10 +208,3 @@ module_exit(my_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("ck");
 MODULE_DESCRIPTION("Waveshare 2.13inch V2 EPD char device driver");
-
-/* of_match_table */
-static const struct of_device_id epd_of_match[] = {
-    { .compatible = "waveshare,epd2in13v2" },
-    { /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(of, epd_of_match);
