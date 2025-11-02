@@ -211,29 +211,33 @@ static int epd_open(struct inode *inode, struct file *filp) {
     return 0;
 }
 
-
 static void EPD_DrawChar(struct epd_dev *epd, uint16_t x, uint16_t y, char ch) {
     uint8_t width = Font12.Width;
     uint8_t height = Font12.Height;
     const uint8_t *ptr = &Font12.table[(ch - ' ') * height];
+    uint8_t display_buf[WIDTH * HEIGHT] = {0};  // 创建显示缓冲区
     
-    EPD_SendCmd(epd, 0x24);  // WRITE_RAM
-    
+    // 首先将字符数据收集到显示缓冲区
     for(uint8_t j = 0; j < height; j++) {
         uint8_t line = ptr[j];
         for(uint8_t i = 0; i < width; i++) {
             if(line & 0x80) {
-                // 计算实际的位置并写入黑色像素
                 uint16_t real_x = x + i;
                 uint16_t real_y = y + j;
                 if(real_x < EPD_2IN13_V2_WIDTH && real_y < EPD_2IN13_V2_HEIGHT) {
                     uint16_t byte_pos = real_y * WIDTH + real_x / 8;
                     uint8_t bit_pos = 7 - (real_x % 8);
-                    EPD_SendData(epd, (1 << bit_pos));
+                    display_buf[byte_pos] |= (1 << bit_pos);
                 }
             }
             line <<= 1;
         }
+    }
+    
+    // 一次性发送整个显示缓冲区
+    EPD_SendCmd(epd, 0x24);  // WRITE_RAM
+    for(int i = 0; i < WIDTH * HEIGHT; i++) {
+        EPD_SendData(epd, display_buf[i]);
     }
 }
 
