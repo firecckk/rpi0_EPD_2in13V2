@@ -9,7 +9,7 @@
 #include <linux/cdev.h>
 #include <linux/bitrev.h>
 
-#include "../lib/font/fonts.h"
+#include "../lib/font/font12.c"
 
 static struct class *epd_class;
 
@@ -98,7 +98,7 @@ static void EPD_WaitBusy(struct epd_dev *epd) {
     while(gpiod_get_value(epd->gbusy) == 1) {      //LOW: idle, HIGH: busy
 	timeout--;
         msleep(100);
-        pr_info("e-Paper busy\r\n");
+        //pr_info("e-Paper busy\r\n");
 	if(timeout <= 0) {
 		pr_debug("EPD wait busy time out. Force release in software\r\n");
 		break;
@@ -107,26 +107,26 @@ static void EPD_WaitBusy(struct epd_dev *epd) {
     pr_info("e-Paper busy release\r\n");
 }
 
-void EPD_RefreshDisplay(struct epd_dev *epd) {
+static void EPD_RefreshDisplay(struct epd_dev *epd) {
     EPD_SendCmd(epd, 0x22);
     EPD_SendData(epd, 0xC7);  // 0xC7:全刷, 0x0C:局刷
     EPD_SendCmd(epd, 0x20);
     EPD_WaitBusy(epd);
 }
 
-void EPD_Clear(struct epd_dev *epd) {
+static void EPD_Clear(struct epd_dev *epd) {
     uint8_t j,i;
     EPD_SendCmd(epd, 0x24);
     for (j = 0; j < HEIGHT; j++) {
         for (i = 0; i < WIDTH; i++) {
-            EPD_SendData(epd, 0x00);
+            EPD_SendData(epd, 0xFF);
         }
     }
     EPD_RefreshDisplay(epd);
 }
 
 // 全刷参数
-void EPD_init_full(struct epd_dev *epd) {
+static void EPD_init_full(struct epd_dev *epd) {
     EPD_Reset(epd);
 
     EPD_WaitBusy(epd);
@@ -215,7 +215,12 @@ static void EPD_DrawChar(struct epd_dev *epd, uint16_t x, uint16_t y, char ch) {
     uint8_t width = Font12.Width;
     uint8_t height = Font12.Height;
     const uint8_t *ptr = &Font12.table[(ch - ' ') * height];
-    uint8_t display_buf[WIDTH * HEIGHT] = {0};  // 创建显示缓冲区
+    uint8_t *display_buf = kmalloc(WIDTH * HEIGHT, GFP_KERNEL);
+    if (!display_buf) {
+        pr_err("Failed to allocate display buffer\n");
+        return;
+    }
+    memset(display_buf, 0, WIDTH * HEIGHT);
     
     // 首先将字符数据收集到显示缓冲区
     for(uint8_t j = 0; j < height; j++) {
@@ -239,6 +244,7 @@ static void EPD_DrawChar(struct epd_dev *epd, uint16_t x, uint16_t y, char ch) {
     for(int i = 0; i < WIDTH * HEIGHT; i++) {
         EPD_SendData(epd, display_buf[i]);
     }
+    kfree(display_buf);
 }
 
 #define MAX_CHAR_COUNT 256  // 最大字符数
@@ -364,6 +370,7 @@ static void epd_spi_remove(struct spi_device *spi)
 {
     pr_info("epd remove");
     struct epd_dev *epd = spi_get_drvdata(spi);
+    EPD_Clear(epd);
     
     device_destroy(epd_class, epd->devt);
     cdev_del(&epd->cdev);
