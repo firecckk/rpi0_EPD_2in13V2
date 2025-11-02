@@ -14,7 +14,13 @@ clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
 	rm -f *.o *.ko *.mod.c *.mod.o *.order *.symvers
 dt:
+	dtc spidev_disabler.dts -O dtb >spidev_disabler.dtbo
 	dtc -@ -I dts -O dtb -o epd_chrdev_overlay.dtbo epd_chrdev_overlay.dts
+
+reload:
+	rmmod epd_char_device.ko
+	insmod epd_char_device.ko
+	chmod 0666 /dev/epd0
 
 # 检查代码风格
 checkpatch:

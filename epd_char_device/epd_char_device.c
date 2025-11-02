@@ -7,6 +7,7 @@
 #include <linux/spi/spi.h>
 #include <linux/gpio/consumer.h>
 #include <linux/cdev.h>
+#include <linux/bitrev.h>
 
 static struct class *epd_class;
 
@@ -30,7 +31,7 @@ struct epd_dev {
 #define WIDTH ((EPD_2IN13_V2_WIDTH % 8 == 0)? (EPD_2IN13_V2_WIDTH / 8 ): (EPD_2IN13_V2_WIDTH / 8 + 1))
 #define HEIGHT (EPD_2IN13_V2_HEIGHT) 
 
-const unsigned char EPD_2IN13_V2_lut_full_update[]= {
+const uint8_t EPD_2IN13_V2_lut_full_update[]= {
     0x80,0x60,0x40,0x00,0x00,0x00,0x00,             //LUT0: BB:     VS 0 ~7
     0x10,0x60,0x20,0x00,0x00,0x00,0x00,             //LUT1: BW:     VS 0 ~7
     0x80,0x60,0x40,0x00,0x00,0x00,0x00,             //LUT2: WB:     VS 0 ~7
@@ -49,6 +50,7 @@ const unsigned char EPD_2IN13_V2_lut_full_update[]= {
 };
 
 static void EPD_Reset(struct epd_dev *epd) {
+    pr_info("== EPD Hardware Reset ==");
     gpiod_set_value(epd->grst, 1);
     msleep(200);
     gpiod_set_value(epd->grst, 0);
@@ -57,20 +59,48 @@ static void EPD_Reset(struct epd_dev *epd) {
     msleep(200);
 }
 
-static void EPD_SendCmd(struct epd_dev *epd, unsigned char cmd) {
-    gpiod_set_value(epd->gdc, 0); // cmd
-    spi_write(epd->spi, &cmd, 1);
+static uint8_t EPD_TransferByte(struct epd_dev *epd, uint8_t data) 
+{
+    uint8_t rx = 0;
+    struct spi_transfer xfer = {
+        .tx_buf = &data,
+        .rx_buf = &rx,
+        .len = 1,
+        .speed_hz = 500000,  // 20MHz
+        .bits_per_word = 8,
+	.cs_change = 0,  // CS keep
+    };
+    struct spi_message msg;
+
+    spi_message_init(&msg);
+    spi_message_add_tail(&xfer, &msg);
+    spi_sync(epd->spi, &msg);
+    
+    return rx;
 }
 
-static void EPD_SendData(struct epd_dev *epd, unsigned char dat) {
+static void EPD_SendCmd(struct epd_dev *epd, uint8_t cmd) {
+    gpiod_set_value(epd->gdc, 0); // cmd
+    //EPD_TransferByte(epd, bitrev8(cmd));
+    EPD_TransferByte(epd, cmd);
+}
+
+static void EPD_SendData(struct epd_dev *epd, uint8_t dat) {
     gpiod_set_value(epd->gdc, 1); // data
-    spi_write(epd->spi, &dat, 1);
+    //EPD_TransferByte(epd, bitrev8(dat));
+    EPD_TransferByte(epd, dat);
 }
 
 static void EPD_WaitBusy(struct epd_dev *epd) {
-    pr_info("e-Paper busy\r\n");
+    uint8_t timeout = 50;
     while(gpiod_get_value(epd->gbusy) == 1) {      //LOW: idle, HIGH: busy
+	timeout--;
         msleep(100);
+        pr_info("e-Paper busy\r\n");
+	if(timeout <= 0) {
+		pr_debug("EPD wait busy time out. Force release in software\r\n");
+		break;
+	}
     }
     pr_info("e-Paper busy release\r\n");
 }
@@ -83,11 +113,11 @@ void EPD_RefreshDisplay(struct epd_dev *epd) {
 }
 
 void EPD_Clear(struct epd_dev *epd) {
-    unsigned char j,i;
+    uint8_t j,i;
     EPD_SendCmd(epd, 0x24);
     for (j = 0; j < HEIGHT; j++) {
         for (i = 0; i < WIDTH; i++) {
-            EPD_SendData(epd, 0xFF);
+            EPD_SendData(epd, 0x00);
         }
     }
     EPD_RefreshDisplay(epd);
@@ -145,7 +175,7 @@ void EPD_init_full(struct epd_dev *epd) {
 
     EPD_SendCmd(epd, 0x32);
     
-    unsigned char count;
+    uint8_t count;
     for(count = 0; count < 70; count++) {
         EPD_SendData(epd, EPD_2IN13_V2_lut_full_update[count]);
     }
@@ -158,10 +188,23 @@ void EPD_init_full(struct epd_dev *epd) {
     EPD_WaitBusy(epd);
 }
 
+static void EPD_Init(struct epd_dev *epd)
+{
+    pr_info("Init epd device");
+
+    // Init EPD
+    EPD_init_full(epd);
+}
+
 /* Kernel API */
 static int epd_open(struct inode *inode, struct file *filp) {
+    pr_info("opening epd device\n");
     struct epd_dev *epd = container_of(inode->i_cdev, struct epd_dev, cdev);
     filp->private_data = epd;
+    
+    // Init EPD
+    EPD_Init(epd);
+
     EPD_Clear(epd);
     return 0;
 }
@@ -185,41 +228,9 @@ static const struct file_operations epd_fops = {
     .release = epd_release,
 };
 
-static uint8_t EPD_TransferByte(struct epd_dev *epd, uint8_t data) 
-{
-    uint8_t rx = 0;
-    struct spi_transfer xfer = {
-        .tx_buf = &data,
-        .rx_buf = &rx,
-        .len = 1,
-        .speed_hz = 20000000,  // 20MHz
-        .bits_per_word = 8,
-    };
-    struct spi_message msg;
-
-    spi_message_init(&msg);
-    spi_message_add_tail(&xfer, &msg);
-    spi_sync(epd->spi, &msg);
-    
-    return rx;
-}
-
-static void EPD_Init(struct epd_dev *epd)
-{
-    // 设置 SPI 模式
-    epd->spi->mode = SPI_MODE_0;
-    epd->spi->bits_per_word = 8;
-    epd->spi->max_speed_hz = 20000000;
-    spi_setup(epd->spi);
-
-    // 初始化 GPIO
-
-    // Init EPD
-    EPD_init_full(epd);
-}
-
 static int epd_spi_probe(struct spi_device *spi)
 {
+    pr_info("epd probe");
     struct device *dev = &spi->dev;
     struct epd_dev *epd;
     int ret;
@@ -255,8 +266,11 @@ static int epd_spi_probe(struct spi_device *spi)
     device_create(epd_class, dev, epd->devt, epd, "epd%d", 0);
 
     // 初始化 SPI 设备
-    EPD_Init(epd);
-
+    epd->spi->mode = SPI_MODE_0;
+    epd->spi->bits_per_word = 8;
+    epd->spi->max_speed_hz = 500000;
+    spi_setup(epd->spi);
+    
     return 0;
 
 err_unreg_chrdev:
@@ -267,6 +281,7 @@ err_unreg_chrdev:
 /* 清理（devm_资源会自动释放），注销字符设备等 */
 static void epd_spi_remove(struct spi_device *spi)
 {
+    pr_info("epd remove");
     struct epd_dev *epd = spi_get_drvdata(spi);
     
     device_destroy(epd_class, epd->devt);
