@@ -75,95 +75,94 @@ static void EPD_WaitBusy(struct epd_dev *epd) {
     pr_info("e-Paper busy release\r\n");
 }
 
-void EPD_RefreshDisplay(void) {
-    EPD_SendCmd(0x22);
-    EPD_SendData(0xC7);  // 0xC7:全刷, 0x0C:局刷
-    EPD_SendCmd(0x20);
-    EPD_WaitBusy();
+void EPD_RefreshDisplay(struct epd_dev *epd) {
+    EPD_SendCmd(epd, 0x22);
+    EPD_SendData(epd, 0xC7);  // 0xC7:全刷, 0x0C:局刷
+    EPD_SendCmd(epd, 0x20);
+    EPD_WaitBusy(epd);
 }
 
-void EPD_Clear() {
-    unsigned int j,i;
-    EPD_SendCmd(0x24);
+void EPD_Clear(struct epd_dev *epd) {
+    unsigned char j,i;
+    EPD_SendCmd(epd, 0x24);
     for (j = 0; j < HEIGHT; j++) {
         for (i = 0; i < WIDTH; i++) {
-            EPD_SendData(0xFF);
+            EPD_SendData(epd, 0xFF);
         }
     }
-    EPD_RefreshDisplay();
+    EPD_RefreshDisplay(epd);
 }
 
 // 全刷参数
-void EPD_init_full(void) {
-    EPD_Reset();
+void EPD_init_full(struct epd_dev *epd) {
+    EPD_Reset(epd);
 
-    EPD_WaitBusy();
-    EPD_SendCmd(0x12); // soft reset
-    EPD_WaitBusy();
+    EPD_WaitBusy(epd);
+    EPD_SendCmd(epd, 0x12); // soft reset
+    EPD_WaitBusy(epd);
 
-    EPD_SendCmd(0x74); //set analog block control
-    EPD_SendData(0x54);
-    EPD_SendCmd(0x7E); //set digital block control
-    EPD_SendData(0x3B);
+    EPD_SendCmd(epd, 0x74); //set analog block control
+    EPD_SendData(epd, 0x54);
+    EPD_SendCmd(epd, 0x7E); //set digital block control
+    EPD_SendData(epd, 0x3B);
 
-    EPD_SendCmd(0x01); //Driver output control
-    EPD_SendData(0x27); // F9
-    EPD_SendData(0x01); // 00
-    EPD_SendData(0x01); // 00
+    EPD_SendCmd(epd, 0x01); //Driver output control
+    EPD_SendData(epd, 0x27); // F9
+    EPD_SendData(epd, 0x01); // 00
+    EPD_SendData(epd, 0x01); // 00
 
-    EPD_SendCmd(0x11); //data entry mode
-    EPD_SendData(0x01);
+    EPD_SendCmd(epd, 0x11); //data entry mode
+    EPD_SendData(epd, 0x01);
 
-    EPD_SendCmd(0x44); //set Ram-X address start/end position
-    EPD_SendData(0x00);
-    EPD_SendData(0x0F);    //0x0F-->(15+1)*8=128
+    EPD_SendCmd(epd, 0x44); //set Ram-X address start/end position
+    EPD_SendData(epd, 0x00);
+    EPD_SendData(epd, 0x0F);    //0x0F-->(15+1)*8=128
 
-    EPD_SendCmd(0x45); //set Ram-Y address start/end position
-    EPD_SendData(0x27);   //0xF9-->(249+1)=250
-    EPD_SendData(0x01);
-    EPD_SendData(0x2E);
-    EPD_SendData(0x00);
+    EPD_SendCmd(epd, 0x45); //set Ram-Y address start/end position
+    EPD_SendData(epd, 0x27);   //0xF9-->(249+1)=250
+    EPD_SendData(epd, 0x01);
+    EPD_SendData(epd, 0x2E);
+    EPD_SendData(epd, 0x00);
 
-    EPD_SendCmd(0x3C); //BorderWavefrom
-    EPD_SendData(0x03);
+    EPD_SendCmd(epd, 0x3C); //BorderWavefrom
+    EPD_SendData(epd, 0x03);
 
-    EPD_SendCmd(0x2C); //VCOM Voltage
-    EPD_SendData(0x55); //
+    EPD_SendCmd(epd, 0x2C); //VCOM Voltage
+    EPD_SendData(epd, 0x55); //
 
-    EPD_SendCmd(0x03);
-    EPD_SendData(EPD_2IN13_V2_lut_full_update[70]);
+    EPD_SendCmd(epd, 0x03);
+    EPD_SendData(epd, EPD_2IN13_V2_lut_full_update[70]);
 
-    EPD_SendCmd(0x04); //
-    EPD_SendData(EPD_2IN13_V2_lut_full_update[71]);
-    EPD_SendData(EPD_2IN13_V2_lut_full_update[72]);
-    EPD_SendData(EPD_2IN13_V2_lut_full_update[73]);
+    EPD_SendCmd(epd, 0x04); //
+    EPD_SendData(epd, EPD_2IN13_V2_lut_full_update[71]);
+    EPD_SendData(epd, EPD_2IN13_V2_lut_full_update[72]);
+    EPD_SendData(epd, EPD_2IN13_V2_lut_full_update[73]);
 
-    EPD_SendCmd(0x3A);     //Dummy Line
-    EPD_SendData(EPD_2IN13_V2_lut_full_update[74]);
-    EPD_SendCmd(0x3B);     //Gate time
-    EPD_SendData(EPD_2IN13_V2_lut_full_update[75]);
+    EPD_SendCmd(epd, 0x3A);     //Dummy Line
+    EPD_SendData(epd, EPD_2IN13_V2_lut_full_update[74]);
+    EPD_SendCmd(epd, 0x3B);     //Gate time
+    EPD_SendData(epd, EPD_2IN13_V2_lut_full_update[75]);
 
-    EPD_SendCmd(0x32);
+    EPD_SendCmd(epd, 0x32);
     
-    UBYTE count;
+    unsigned char count;
     for(count = 0; count < 70; count++) {
-        EPD_SendData(EPD_2IN13_V2_lut_full_update[count]);
+        EPD_SendData(epd, EPD_2IN13_V2_lut_full_update[count]);
     }
 
-    EPD_SendCmd(0x4E);   // set RAM x address count to 0;
-    EPD_SendData(0x00);
-    EPD_SendCmd(0x4F);   // set RAM y address count to 0X127;
-    EPD_SendData(0x27); // F9
-    EPD_SendData(0x01); // 00
-    EPD_WaitBusy();
+    EPD_SendCmd(epd, 0x4E);   // set RAM x address count to 0;
+    EPD_SendData(epd, 0x00);
+    EPD_SendCmd(epd, 0x4F);   // set RAM y address count to 0X127;
+    EPD_SendData(epd, 0x27); // F9
+    EPD_SendData(epd, 0x01); // 00
+    EPD_WaitBusy(epd);
 }
 
 /* Kernel API */
 static int epd_open(struct inode *inode, struct file *filp) {
     struct epd_dev *epd = container_of(inode->i_cdev, struct epd_dev, cdev);
     filp->private_data = epd;
-    EPD_Reset(epd);
-    EPD_init_full();
+    EPD_Clear(epd);
     return 0;
 }
 
@@ -214,7 +213,9 @@ static void EPD_Init(struct epd_dev *epd)
     spi_setup(epd->spi);
 
     // 初始化 GPIO
-    EPD_Reset(epd);                 // 执行复位序列
+
+    // Init EPD
+    EPD_init_full(epd);
 }
 
 static int epd_spi_probe(struct spi_device *spi)
