@@ -9,6 +9,8 @@
 #include <linux/cdev.h>
 #include <linux/bitrev.h>
 
+#include "../lib/font/fonts.h"
+
 static struct class *epd_class;
 
 struct epd_dev {
@@ -209,10 +211,85 @@ static int epd_open(struct inode *inode, struct file *filp) {
     return 0;
 }
 
+
+static void EPD_DrawChar(struct epd_dev *epd, uint16_t x, uint16_t y, char ch) {
+    uint8_t width = Font12.Width;
+    uint8_t height = Font12.Height;
+    const uint8_t *ptr = &Font12.table[(ch - ' ') * height];
+    
+    EPD_SendCmd(epd, 0x24);  // WRITE_RAM
+    
+    for(uint8_t j = 0; j < height; j++) {
+        uint8_t line = ptr[j];
+        for(uint8_t i = 0; i < width; i++) {
+            if(line & 0x80) {
+                // 计算实际的位置并写入黑色像素
+                uint16_t real_x = x + i;
+                uint16_t real_y = y + j;
+                if(real_x < EPD_2IN13_V2_WIDTH && real_y < EPD_2IN13_V2_HEIGHT) {
+                    uint16_t byte_pos = real_y * WIDTH + real_x / 8;
+                    uint8_t bit_pos = 7 - (real_x % 8);
+                    EPD_SendData(epd, (1 << bit_pos));
+                }
+            }
+            line <<= 1;
+        }
+    }
+}
+
+#define MAX_CHAR_COUNT 256  // 最大字符数
+
 static ssize_t epd_write(struct file *filp, const char __user *buf,
                         size_t count, loff_t *f_pos) {
     struct epd_dev *epd = filp->private_data;
-    pr_info("writing to epd device\n");
+    char *text_buf;
+    int i;
+    uint16_t x = 0, y = 0;
+    
+    if(count > MAX_CHAR_COUNT) {
+        return -EINVAL;
+    }
+    
+    // 分配临时缓冲区
+    text_buf = kmalloc(count + 1, GFP_KERNEL);
+    if (!text_buf)
+        return -ENOMEM;
+    
+    // 从用户空间复制文本数据
+    if (copy_from_user(text_buf, buf, count)) {
+        kfree(text_buf);
+        return -EFAULT;
+    }
+    text_buf[count] = '\0';
+    
+    // 清屏
+    EPD_Clear(epd);
+    
+    // 渲染文本
+    for(i = 0; i < count; i++) {
+        if(text_buf[i] == '\n') {
+            x = 0;
+            y += Font12.Height;
+            continue;
+        }
+        
+        if(x + Font12.Width > EPD_2IN13_V2_WIDTH) {
+            x = 0;
+            y += Font12.Height;
+        }
+        
+        if(y + Font12.Height > EPD_2IN13_V2_HEIGHT) {
+            break;  // 超出显示范围
+        }
+        
+        EPD_DrawChar(epd, x, y, text_buf[i]);
+        x += Font12.Width;
+    }
+    
+    // 刷新显示
+    EPD_RefreshDisplay(epd);
+    
+    kfree(text_buf);
     return count;
 }
 
