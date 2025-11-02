@@ -21,6 +21,33 @@ struct epd_dev {
     /* ...其他状态... */
 };
 
+/**
+* EPD driver
+**/
+#define EPD_2IN13_V2_WIDTH      122 
+#define EPD_2IN13_V2_HEIGHT     250 
+
+#define WIDTH ((EPD_2IN13_V2_WIDTH % 8 == 0)? (EPD_2IN13_V2_WIDTH / 8 ): (EPD_2IN13_V2_WIDTH / 8 + 1))
+#define HEIGHT (EPD_2IN13_V2_HEIGHT) 
+
+const unsigned char EPD_2IN13_V2_lut_full_update[]= {
+    0x80,0x60,0x40,0x00,0x00,0x00,0x00,             //LUT0: BB:     VS 0 ~7
+    0x10,0x60,0x20,0x00,0x00,0x00,0x00,             //LUT1: BW:     VS 0 ~7
+    0x80,0x60,0x40,0x00,0x00,0x00,0x00,             //LUT2: WB:     VS 0 ~7
+    0x10,0x60,0x20,0x00,0x00,0x00,0x00,             //LUT3: WW:     VS 0 ~7
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,             //LUT4: VCOM:   VS 0 ~7
+
+    0x03,0x03,0x00,0x00,0x02,                       // TP0 A~D RP0
+    0x09,0x09,0x00,0x00,0x02,                       // TP1 A~D RP1
+    0x03,0x03,0x00,0x00,0x02,                       // TP2 A~D RP2
+    0x00,0x00,0x00,0x00,0x00,                       // TP3 A~D RP3
+    0x00,0x00,0x00,0x00,0x00,                       // TP4 A~D RP4
+    0x00,0x00,0x00,0x00,0x00,                       // TP5 A~D RP5
+    0x00,0x00,0x00,0x00,0x00,                       // TP6 A~D RP6
+
+    0x15,0x41,0xA8,0x32,0x30,0x0A,
+};
+
 static void EPD_Reset(struct epd_dev *epd) {
     gpiod_set_value(epd->grst, 1);
     msleep(200);
@@ -48,10 +75,95 @@ static void EPD_WaitBusy(struct epd_dev *epd) {
     pr_info("e-Paper busy release\r\n");
 }
 
+void EPD_RefreshDisplay(void) {
+    EPD_SendCmd(0x22);
+    EPD_SendData(0xC7);  // 0xC7:全刷, 0x0C:局刷
+    EPD_SendCmd(0x20);
+    EPD_WaitBusy();
+}
+
+void EPD_Clear() {
+    unsigned int j,i;
+    EPD_SendCmd(0x24);
+    for (j = 0; j < HEIGHT; j++) {
+        for (i = 0; i < WIDTH; i++) {
+            EPD_SendData(0xFF);
+        }
+    }
+    EPD_RefreshDisplay();
+}
+
+// 全刷参数
+void EPD_init_full(void) {
+    EPD_Reset();
+
+    EPD_WaitBusy();
+    EPD_SendCmd(0x12); // soft reset
+    EPD_WaitBusy();
+
+    EPD_SendCmd(0x74); //set analog block control
+    EPD_SendData(0x54);
+    EPD_SendCmd(0x7E); //set digital block control
+    EPD_SendData(0x3B);
+
+    EPD_SendCmd(0x01); //Driver output control
+    EPD_SendData(0x27); // F9
+    EPD_SendData(0x01); // 00
+    EPD_SendData(0x01); // 00
+
+    EPD_SendCmd(0x11); //data entry mode
+    EPD_SendData(0x01);
+
+    EPD_SendCmd(0x44); //set Ram-X address start/end position
+    EPD_SendData(0x00);
+    EPD_SendData(0x0F);    //0x0F-->(15+1)*8=128
+
+    EPD_SendCmd(0x45); //set Ram-Y address start/end position
+    EPD_SendData(0x27);   //0xF9-->(249+1)=250
+    EPD_SendData(0x01);
+    EPD_SendData(0x2E);
+    EPD_SendData(0x00);
+
+    EPD_SendCmd(0x3C); //BorderWavefrom
+    EPD_SendData(0x03);
+
+    EPD_SendCmd(0x2C); //VCOM Voltage
+    EPD_SendData(0x55); //
+
+    EPD_SendCmd(0x03);
+    EPD_SendData(EPD_2IN13_V2_lut_full_update[70]);
+
+    EPD_SendCmd(0x04); //
+    EPD_SendData(EPD_2IN13_V2_lut_full_update[71]);
+    EPD_SendData(EPD_2IN13_V2_lut_full_update[72]);
+    EPD_SendData(EPD_2IN13_V2_lut_full_update[73]);
+
+    EPD_SendCmd(0x3A);     //Dummy Line
+    EPD_SendData(EPD_2IN13_V2_lut_full_update[74]);
+    EPD_SendCmd(0x3B);     //Gate time
+    EPD_SendData(EPD_2IN13_V2_lut_full_update[75]);
+
+    EPD_SendCmd(0x32);
+    
+    UBYTE count;
+    for(count = 0; count < 70; count++) {
+        EPD_SendData(EPD_2IN13_V2_lut_full_update[count]);
+    }
+
+    EPD_SendCmd(0x4E);   // set RAM x address count to 0;
+    EPD_SendData(0x00);
+    EPD_SendCmd(0x4F);   // set RAM y address count to 0X127;
+    EPD_SendData(0x27); // F9
+    EPD_SendData(0x01); // 00
+    EPD_WaitBusy();
+}
+
+/* Kernel API */
 static int epd_open(struct inode *inode, struct file *filp) {
     struct epd_dev *epd = container_of(inode->i_cdev, struct epd_dev, cdev);
     filp->private_data = epd;
     EPD_Reset(epd);
+    EPD_init_full();
     return 0;
 }
 
