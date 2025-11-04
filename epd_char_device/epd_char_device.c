@@ -7,7 +7,6 @@
 #include <linux/spi/spi.h>
 #include <linux/gpio/consumer.h>
 #include <linux/cdev.h>
-#include <linux/bitrev.h>
 
 #include "../lib/font/font12.c"
 
@@ -84,13 +83,11 @@ static uint8_t EPD_TransferByte(struct epd_dev *epd, uint8_t data)
 
 static void EPD_SendCmd(struct epd_dev *epd, uint8_t cmd) {
     gpiod_set_value(epd->gdc, 0); // cmd
-    //EPD_TransferByte(epd, bitrev8(cmd));
     EPD_TransferByte(epd, cmd);
 }
 
 static void EPD_SendData(struct epd_dev *epd, uint8_t dat) {
     gpiod_set_value(epd->gdc, 1); // data
-    //EPD_TransferByte(epd, bitrev8(dat));
     EPD_TransferByte(epd, dat);
 }
 
