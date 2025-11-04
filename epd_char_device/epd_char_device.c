@@ -22,6 +22,7 @@ struct epd_dev {
     struct cdev cdev;
     dev_t devt;
     /* ...其他状态... */
+    uint8_t * display_buf;
 };
 
 /**
@@ -198,6 +199,36 @@ static void EPD_Init(struct epd_dev *epd)
     EPD_init_full(epd);
 }
 
+static void EPD_Flush(struct epd_dev *epd)
+{
+    EPD_SendCmd(epd, 0x24);  // WRITE_RAM
+    for(int i = 0; i < WIDTH * HEIGHT; i++) {
+        EPD_SendData(epd, epd->display_buf[i]);
+    }
+}
+
+static void EPD_DrawChar(struct epd_dev *epd, uint16_t x, uint16_t y, char ch) {
+    uint8_t width = Font12.Width;
+    uint8_t height = Font12.Height;
+    const uint8_t *ptr = &Font12.table[(ch - ' ') * height];
+    
+    for(uint8_t j = 0; j < height; j++) {
+        uint8_t line = ptr[j];
+        for(uint8_t i = 0; i < width; i++) {
+            if(line & 0x80) {
+                uint16_t real_x = x + i;
+                uint16_t real_y = y + j;
+                if(real_x < EPD_2IN13_V2_WIDTH && real_y < EPD_2IN13_V2_HEIGHT) {
+                    uint16_t byte_pos = real_y * WIDTH + real_x / 8;
+                    uint8_t bit_pos = 7 - (real_x % 8);
+                    epd->display_buf[byte_pos] |= (1 << bit_pos);
+                }
+            }
+            line <<= 1;
+        }
+    }
+}
+
 /* Kernel API */
 static int epd_open(struct inode *inode, struct file *filp) {
     pr_info("opening epd device\n");
@@ -209,42 +240,6 @@ static int epd_open(struct inode *inode, struct file *filp) {
 
     EPD_Clear(epd);
     return 0;
-}
-
-static void EPD_DrawChar(struct epd_dev *epd, uint16_t x, uint16_t y, char ch) {
-    uint8_t width = Font12.Width;
-    uint8_t height = Font12.Height;
-    const uint8_t *ptr = &Font12.table[(ch - ' ') * height];
-    uint8_t *display_buf = kmalloc(WIDTH * HEIGHT, GFP_KERNEL);
-    if (!display_buf) {
-        pr_err("Failed to allocate display buffer\n");
-        return;
-    }
-    memset(display_buf, 0, WIDTH * HEIGHT);
-    
-    // 首先将字符数据收集到显示缓冲区
-    for(uint8_t j = 0; j < height; j++) {
-        uint8_t line = ptr[j];
-        for(uint8_t i = 0; i < width; i++) {
-            if(line & 0x80) {
-                uint16_t real_x = x + i;
-                uint16_t real_y = y + j;
-                if(real_x < EPD_2IN13_V2_WIDTH && real_y < EPD_2IN13_V2_HEIGHT) {
-                    uint16_t byte_pos = real_y * WIDTH + real_x / 8;
-                    uint8_t bit_pos = 7 - (real_x % 8);
-                    display_buf[byte_pos] |= (1 << bit_pos);
-                }
-            }
-            line <<= 1;
-        }
-    }
-    
-    // 一次性发送整个显示缓冲区
-    EPD_SendCmd(epd, 0x24);  // WRITE_RAM
-    for(int i = 0; i < WIDTH * HEIGHT; i++) {
-        EPD_SendData(epd, display_buf[i]);
-    }
-    kfree(display_buf);
 }
 
 #define MAX_CHAR_COUNT 256  // 最大字符数
@@ -296,6 +291,7 @@ static ssize_t epd_write(struct file *filp, const char __user *buf,
         x += Font12.Width;
     }
     
+    EPD_Flush(epd);
     // 刷新显示
     EPD_RefreshDisplay(epd);
     
@@ -315,7 +311,7 @@ static const struct file_operations epd_fops = {
     .release = epd_release,
 };
 
-static int epd_spi_probe(struct spi_device *spi)
+static int epd_probe(struct spi_device *spi)
 {
     pr_info("epd probe");
     struct device *dev = &spi->dev;
@@ -339,6 +335,14 @@ static int epd_spi_probe(struct spi_device *spi)
         dev_err(dev, "failed to get gpios\n");
         return -ENODEV;
     }
+
+    // create display buffer
+    epd->display_buf = kmalloc(WIDTH * HEIGHT, GFP_KERNEL);
+    if (!display_buf) {
+        pr_err("Failed to allocate display buffer\n");
+        return;
+    }
+    memset(epd->display_buf, 0, WIDTH * HEIGHT);
 
     ret = alloc_chrdev_region(&epd->devt, 0, 1, "epd");
     if (ret < 0)
@@ -366,11 +370,12 @@ err_unreg_chrdev:
 }
 
 /* 清理（devm_资源会自动释放），注销字符设备等 */
-static void epd_spi_remove(struct spi_device *spi)
+static void epd_remove(struct spi_device *spi)
 {
     pr_info("epd remove");
     struct epd_dev *epd = spi_get_drvdata(spi);
     EPD_Clear(epd);
+    kfree(epd->display_buf);
     
     device_destroy(epd_class, epd->devt);
     cdev_del(&epd->cdev);
@@ -390,8 +395,8 @@ static struct spi_driver epd_spi_driver = {
         .name = "epd2in13v2",
         .of_match_table = epd_of_match,
     },
-    .probe = epd_spi_probe,
-    .remove = epd_spi_remove,
+    .probe = epd_probe,
+    .remove = epd_remove,
 };
 
 /* 修改模块 init/exit：注册 spi_driver */
