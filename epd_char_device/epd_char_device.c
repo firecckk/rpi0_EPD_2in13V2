@@ -338,9 +338,9 @@ static int epd_probe(struct spi_device *spi)
 
     // create display buffer
     epd->display_buf = kmalloc(WIDTH * HEIGHT, GFP_KERNEL);
-    if (!display_buf) {
+    if (!epd->display_buf) {
         pr_err("Failed to allocate display buffer\n");
-        return;
+        return -ENOMEM;
     }
     memset(epd->display_buf, 0, WIDTH * HEIGHT);
 
