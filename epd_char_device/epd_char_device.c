@@ -223,11 +223,11 @@ static void EPD_DrawChar(struct epd_dev *epd, uint16_t x, uint16_t y, char ch) {
                     epd->display_buf[byte_pos] |= (1 << bit_pos);
                 }
 #else
-                uint16_t real_x = x + j;
-                uint16_t real_y = y + i;
+                uint16_t real_x = EPD_2IN13_V2_WIDTH - y - j;
+                uint16_t real_y = x + i;
                 if(real_x < EPD_2IN13_V2_WIDTH && real_y < EPD_2IN13_V2_HEIGHT) {
-                    uint16_t byte_pos = real_x * HEIGHT + real_y / 8;
-                    uint8_t bit_pos = 7 - (real_y % 8);
+                    uint16_t byte_pos = real_y * WIDTH + real_x / 8;
+                    uint8_t bit_pos = 7 - (real_x % 8);
                     epd->display_buf[byte_pos] |= (1 << bit_pos);
                 }
 #endif
