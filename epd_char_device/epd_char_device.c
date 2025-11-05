@@ -204,15 +204,17 @@ static void EPD_Flush(struct epd_dev *epd)
     }
 }
 
+#define LANDSCAPE
 static void EPD_DrawChar(struct epd_dev *epd, uint16_t x, uint16_t y, char ch) {
     uint8_t width = Font12.Width;
     uint8_t height = Font12.Height;
     const uint8_t *ptr = &Font12.table[(ch - ' ') * height];
-    
+
     for(uint8_t j = 0; j < height; j++) {
         uint8_t line = ptr[j];
         for(uint8_t i = 0; i < width; i++) {
             if(line & 0x80) {
+#ifndef LANDSCAPE
                 uint16_t real_x = x + i;
                 uint16_t real_y = y + j;
                 if(real_x < EPD_2IN13_V2_WIDTH && real_y < EPD_2IN13_V2_HEIGHT) {
@@ -220,6 +222,15 @@ static void EPD_DrawChar(struct epd_dev *epd, uint16_t x, uint16_t y, char ch) {
                     uint8_t bit_pos = 7 - (real_x % 8);
                     epd->display_buf[byte_pos] |= (1 << bit_pos);
                 }
+#else
+                uint16_t real_x = x + j;
+                uint16_t real_y = y + i;
+                if(real_x < EPD_2IN13_V2_WIDTH && real_y < EPD_2IN13_V2_HEIGHT) {
+                    uint16_t byte_pos = real_x * HEIGHT + real_y / 8;
+                    uint8_t bit_pos = 7 - (real_y % 8);
+                    epd->display_buf[byte_pos] |= (1 << bit_pos);
+                }
+#endif
             }
             line <<= 1;
         }
