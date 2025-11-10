@@ -217,20 +217,15 @@ static void EPD_DrawChar(struct epd_dev *epd, uint16_t x, uint16_t y, char ch) {
 #ifndef LANDSCAPE
                 uint16_t real_x = x + i;
                 uint16_t real_y = y + j;
-                if(real_x < EPD_2IN13_V2_WIDTH && real_y < EPD_2IN13_V2_HEIGHT) {
-                    uint16_t byte_pos = real_y * WIDTH + real_x / 8;
-                    uint8_t bit_pos = 7 - (real_x % 8);
-                    epd->display_buf[byte_pos] |= (1 << bit_pos);
-                }
 #else
                 uint16_t real_x = EPD_2IN13_V2_WIDTH - y - j;
                 uint16_t real_y = x + i;
+#endif
                 if(real_x < EPD_2IN13_V2_WIDTH && real_y < EPD_2IN13_V2_HEIGHT) {
                     uint16_t byte_pos = real_y * WIDTH + real_x / 8;
                     uint8_t bit_pos = 7 - (real_x % 8);
                     epd->display_buf[byte_pos] |= (1 << bit_pos);
                 }
-#endif
             }
             line <<= 1;
         }
@@ -285,16 +280,22 @@ static ssize_t epd_write(struct file *filp, const char __user *buf,
             y += Font12.Height;
             continue;
         }
-        
-        if(x + Font12.Width > EPD_2IN13_V2_WIDTH) {
+#ifndef LANDSCAPE        
+#define BUF_WIDTH EPD_2IN13_V2_WIDTH
+#define BUF_HEIGHT EPD_2IN13_V2_HEIGHT
+#else
+#define BUF_WIDTH EPD_2IN13_V2_HEIGHT
+#define BUF_HEIGHT EPD_2IN13_V2_WIDTH
+#endif	
+        if(x + Font12.Width > BUF_WIDTH) {
             x = 0;
             y += Font12.Height;
         }
         
-        if(y + Font12.Height > EPD_2IN13_V2_HEIGHT) {
+        if(y + Font12.Height > BUF_HEIGHT) {
+	    pr_info("epd chars out of bound %d - portrait", EPD_2IN13_V2_WIDTH);
             break;  // 超出显示范围
         }
-        
         EPD_DrawChar(epd, x, y, text_buf[i]);
         x += Font12.Width;
     }
@@ -412,12 +413,14 @@ static int __init my_init(void)
 {
     int ret;
 
+    pr_info("init epd module");
     epd_class = class_create("epd");  // Remove THIS_MODULE parameter
     if (IS_ERR(epd_class))
         return PTR_ERR(epd_class);
 
     ret = spi_register_driver(&epd_spi_driver);
     if (ret < 0) {
+	pr_info("can't register epd spi device. exiting ...");
         class_destroy(epd_class);
         return ret;
     }
