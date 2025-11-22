@@ -16,11 +16,11 @@
 
 /* Char device */
 struct char_mem_dev {
-    char * text;
+    char * data;
     size_t size;
     size_t cap;
     struct mutex lock;
-}
+};
 
 static struct char_mem_dev char_dev;
 
@@ -35,7 +35,7 @@ static int epd_open(struct inode *inode, struct file *filp) {
 static ssize_t epd_read(struct file *filp, char __user *buf, 
                           size_t count, loff_t *f_pos)
 {
-    pr_info("epd_read: count %d, f_pos %d\n", count, *f_pos);
+    pr_info("epd_read: count %zu, f_pos %lld\n", count, *f_pos);
     ssize_t retval = 0;
     size_t bytes_to_read = count;
 
@@ -70,8 +70,6 @@ static ssize_t epd_write(struct file *filp, const char __user *buf,
                         size_t count, loff_t *f_pos) {
     struct epd_dev *epd = filp->private_data;
     char *text_buf;
-    int i;
-    uint16_t x = 0, y = 0;
     
     if(count > MAX_CHAR_COUNT) {
         return -EINVAL;
@@ -89,7 +87,7 @@ static ssize_t epd_write(struct file *filp, const char __user *buf,
     }
     text_buf[count] = '\0';
     
-    EPD_print(epd, count)
+    EPD_print(epd, text_buf, count);
     
     kfree(text_buf);
     return count;
@@ -186,7 +184,11 @@ static int epd_probe(struct spi_device *spi)
     epd->spi->max_speed_hz = 1000000;
     spi_setup(epd->spi);
     
-    EPD_Init(epd);
+    ret = EPD_Init(epd);
+    if(ret < 0) {
+	pr_err("Failed to allocate display buffer\n");
+        return -ENOMEM;
+    }
 
     // init text buffer
     char_dev.size = 0;

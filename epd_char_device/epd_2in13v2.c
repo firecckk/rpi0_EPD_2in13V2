@@ -174,24 +174,20 @@ static void EPD_init_full(struct epd_dev *epd) {
     EPD_WaitBusy(epd);
 }
 
-static void EPD_Init(struct epd_dev *epd)
+static int EPD_Init(struct epd_dev *epd)
 {
     pr_info("Init epd device");
 
     // create display buffer
     epd->display_buf = kmalloc(WIDTH * HEIGHT, GFP_KERNEL);
     if (!epd->display_buf) {
-        pr_err("Failed to allocate display buffer\n");
         return -ENOMEM;
     }
-    EPD_clear_buffer();
+    memset(epd->display_buf, 0, WIDTH * HEIGHT);
 
     EPD_init_full(epd);
     EPD_Clear(epd);
-}
-
-static void EPD_clear_buffer() {
-    memset(epd->display_buf, 0, WIDTH * HEIGHT);
+    return 0;
 }
 
 static void EPD_Flush(struct epd_dev *epd)
@@ -238,8 +234,11 @@ static void EPD_DrawChar(struct epd_dev *epd, uint16_t x, uint16_t y, char ch) {
 #define BUF_HEIGHT EPD_2IN13_V2_WIDTH
 #endif	
 
-static void EPD_print(struct epd_dev *epd, size_t count) {
+static void EPD_print(struct epd_dev *epd, char *text_buf, size_t count) {
     EPD_Clear(epd);
+
+    int i;
+    uint16_t x = 0, y = 0;
     
     // 渲染文本
     for(i = 0; i < count; i++) {
